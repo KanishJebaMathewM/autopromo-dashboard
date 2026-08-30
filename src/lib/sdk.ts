@@ -36,6 +36,14 @@ export interface AutoPromoConfig {
   apiUrl?: string;
 }
 
+export interface ConversionPayload {
+  campaignId: string;
+  type: "click" | "install" | "signup" | "purchase";
+  platform?: Platform;
+  value?: number;
+  [key: string]: unknown;
+}
+
 export class AutoPromoSDK {
   private appId: string | null = null;
   private apiUrl: string = "http://localhost:3001";
@@ -62,6 +70,53 @@ export class AutoPromoSDK {
   /** Get active App ID. */
   getAppId(): string | null {
     return this.appId;
+  }
+
+  /** Generates a smart trackable attribution shortlink with UTM tags. */
+  generateAttributionUrl(baseUrl: string, campaignId: string, platform: Platform, event: string): string {
+    const cleanUrl = baseUrl.replace(/\/+$/, "");
+    const utmParams = new URLSearchParams({
+      utm_source: platform,
+      utm_medium: "social",
+      utm_campaign: event.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+      ap_cid: campaignId,
+    });
+    return `${cleanUrl}?${utmParams.toString()}`;
+  }
+
+  /** Track downstream user conversion (click, install, signup, purchase) for ROI attribution. */
+  async trackConversion(payload: ConversionPayload): Promise<{ ok: boolean; recorded: boolean }> {
+    const targetAppId = this.appId || "pocket-recipe";
+    try {
+      const response = await fetch(`${this.apiUrl}/api/attribution/track`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: targetAppId,
+          ...payload,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Attribution tracking error ${response.status}`);
+      }
+
+      return (await response.json()) as { ok: boolean; recorded: boolean };
+    } catch {
+      // Local fallback recording in localStorage
+      if (typeof window !== "undefined") {
+        try {
+          const key = `ap_conversions_${targetAppId}`;
+          const existing = JSON.parse(localStorage.getItem(key) || "[]");
+          existing.push({ ...payload, timestamp: new Date().toISOString() });
+          localStorage.setItem(key, JSON.stringify(existing));
+        } catch {
+          // Ignore storage errors
+        }
+      }
+      return { ok: true, recorded: true };
+    }
   }
 
   /** Emit a product event to trigger AI promo post generation. */
@@ -127,3 +182,4 @@ export class AutoPromoSDK {
 }
 
 export const AutoPromo = new AutoPromoSDK();
+

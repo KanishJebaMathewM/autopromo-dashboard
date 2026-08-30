@@ -84,8 +84,8 @@ export function PaymentSandboxModal({
           <label className="text-xs font-semibold uppercase tracking-wider text-muted-fg">
             Select Subscription Plan
           </label>
-          <div className="mt-2 grid grid-cols-3 gap-3">
-            {(["free", "builder", "agency"] as PlanTier[]).map((tier) => {
+          <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {(["free", "impact", "builder", "agency"] as PlanTier[]).map((tier) => {
               const item = PLANS[tier];
               const isCurrent = currentPlan === tier;
               const isSelected = selectedTier === tier;
@@ -94,7 +94,7 @@ export function PaymentSandboxModal({
                   key={tier}
                   type="button"
                   onClick={() => setSelectedTier(tier)}
-                  className={`relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all ${
+                  className={`relative flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
                     isSelected
                       ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
                       : "border-border bg-surface hover:border-muted-fg"
@@ -102,22 +102,22 @@ export function PaymentSandboxModal({
                 >
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold">{item.name.replace(" (Sandbox)", "")}</span>
+                      <span className="text-xs font-bold truncate">{item.name.split(" ")[0]}</span>
                       {isCurrent && (
-                        <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold text-emerald-500">
+                        <span className="rounded bg-emerald-500/20 px-1 py-0.5 text-[8px] font-bold text-emerald-500">
                           Active
                         </span>
                       )}
                     </div>
-                    <div className="mt-2 font-display text-lg font-bold">
+                    <div className="mt-1.5 font-display text-base font-bold">
                       {item.price}
-                      <span className="text-xs font-normal text-muted-fg">{item.period}</span>
+                      <span className="text-[10px] font-normal text-muted-fg ml-1">{item.period}</span>
                     </div>
                   </div>
-                  <ul className="mt-3 space-y-1 border-t pt-2 text-[10px] text-muted-fg">
+                  <ul className="mt-2.5 space-y-1 border-t pt-2 text-[9px] text-muted-fg">
                     {item.features.slice(0, 2).map((f) => (
                       <li key={f} className="flex items-center gap-1 truncate">
-                        <Check className="h-3 w-3 shrink-0 text-emerald-500" />
+                        <Check className="h-2.5 w-2.5 shrink-0 text-emerald-500" />
                         <span className="truncate">{f}</span>
                       </li>
                     ))}

@@ -222,10 +222,14 @@ function DocsPage() {
 
       {/* ── Integration Steps ── */}
       <section className="mt-10">
-        <h2 className="font-display text-xl font-bold">4-Step Integration Steps</h2>
-        <p className="mt-1 text-sm text-muted-fg">
-          Copy-paste ready snippets to wire AutoPromo into your mobile or web application.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-xl font-bold">Integration Methods (SDK & No-Code Webhooks)</h2>
+            <p className="mt-1 text-sm text-muted-fg">
+              Connect your app via TypeScript SDK or standard HTTP Webhooks (Zapier, GitHub Releases, Make, cURL).
+            </p>
+          </div>
+        </div>
 
         <div className="mt-6 flex flex-wrap gap-2">
           {snippets.map((s, i) => (
@@ -242,30 +246,154 @@ function DocsPage() {
               {i + 1}. {s.label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setActive("webhook-curl")}
+            className={`ap-press rounded-lg border px-3 py-2 text-sm font-medium ${
+              active === "webhook-curl"
+                ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 font-bold"
+                : "hover:bg-muted"
+            }`}
+          >
+            ⚡ No-Code Webhook (cURL / Zapier)
+          </button>
+          <button
+            type="button"
+            onClick={() => setActive("github-action")}
+            className={`ap-press rounded-lg border px-3 py-2 text-sm font-medium ${
+              active === "github-action"
+                ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 font-bold"
+                : "hover:bg-muted"
+            }`}
+          >
+            🤖 GitHub Actions Release Auto-Trigger
+          </button>
         </div>
 
-        {snippet && (
+        {active === "webhook-curl" ? (
           <div className="mt-4 overflow-hidden rounded-xl border bg-surface">
-            <div className="flex items-center justify-between border-b px-4 py-2">
-              <span className="font-mono text-[11px] text-muted-fg">
-                {snippet.language}
-              </span>
+            <div className="flex items-center justify-between border-b px-4 py-2 bg-muted/20">
+              <span className="font-mono text-[11px] text-muted-fg">bash / curl</span>
               <button
                 type="button"
                 onClick={async () => {
-                  await navigator.clipboard.writeText(snippet.code);
-                  toast.success("Snippet copied to clipboard!");
+                  const cmd = `curl -X POST https://autopromo.link/api/event \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "appId": "your-app-id",
+    "type": "new_version",
+    "payload": { "version": "2.0.0", "notes": "Major update released!" }
+  }'`;
+                  await navigator.clipboard.writeText(cmd);
+                  toast.success("cURL webhook copied to clipboard!");
                 }}
                 className="ap-press inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs hover:bg-muted font-medium"
               >
                 <Copy className="h-3 w-3" />
-                Copy Snippet
+                Copy Webhook cURL
               </button>
             </div>
-            <pre className="overflow-x-auto p-4 font-mono text-[12px] leading-relaxed">
-              <code>{snippet.code}</code>
+            <pre className="overflow-x-auto p-4 font-mono text-[12px] leading-relaxed text-foreground">
+              <code>{`# ⚡ Trigger AutoPromo without any SDK code (Zapier, n8n, Make, or backend script)
+curl -X POST https://autopromo.link/api/event \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "appId": "your-app-id",
+    "type": "new_version",
+    "payload": {
+      "version": "2.0.0",
+      "notes": "Redesigned UI with 2x performance speedups and offline sync!",
+      "targetPlatforms": ["twitter", "reddit", "linkedin", "telegram"]
+    }
+  }'`}</code>
             </pre>
           </div>
+        ) : active === "github-action" ? (
+          <div className="mt-4 overflow-hidden rounded-xl border bg-surface">
+            <div className="flex items-center justify-between border-b px-4 py-2 bg-muted/20">
+              <span className="font-mono text-[11px] text-muted-fg">.github/workflows/autopromo.yml</span>
+              <button
+                type="button"
+                onClick={async () => {
+                  const yml = `name: AutoPromo on GitHub Release
+on:
+  release:
+    types: [published]
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger AutoPromo Campaign
+        run: |
+          curl -X POST https://autopromo.link/api/event \\
+            -H "Content-Type: application/json" \\
+            -d '{
+              "appId": "\${{ secrets.AUTOPROMO_APP_ID }}",
+              "type": "new_version",
+              "payload": {
+                "version": "\${{ github.event.release.tag_name }}",
+                "notes": "\${{ github.event.release.name }}"
+              }
+            }'`;
+                  await navigator.clipboard.writeText(yml);
+                  toast.success("GitHub Actions YAML copied!");
+                }}
+                className="ap-press inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs hover:bg-muted font-medium"
+              >
+                <Copy className="h-3 w-3" />
+                Copy Workflow YAML
+              </button>
+            </div>
+            <pre className="overflow-x-auto p-4 font-mono text-[12px] leading-relaxed text-foreground">
+              <code>{`# 🤖 Automatically generate promo campaigns on every GitHub release
+name: AutoPromo on GitHub Release
+on:
+  release:
+    types: [published]
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger AutoPromo Campaign
+        run: |
+          curl -X POST https://autopromo.link/api/event \\
+            -H "Content-Type: application/json" \\
+            -d '{
+              "appId": "\${{ secrets.AUTOPROMO_APP_ID }}",
+              "type": "new_version",
+              "payload": {
+                "version": "\${{ github.event.release.tag_name }}",
+                "notes": "\${{ github.event.release.name }}"
+              }
+            }'`}</code>
+            </pre>
+          </div>
+        ) : (
+          snippet && (
+            <div className="mt-4 overflow-hidden rounded-xl border bg-surface">
+              <div className="flex items-center justify-between border-b px-4 py-2">
+                <span className="font-mono text-[11px] text-muted-fg">
+                  {snippet.language}
+                </span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(snippet.code);
+                    toast.success("Snippet copied to clipboard!");
+                  }}
+                  className="ap-press inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs hover:bg-muted font-medium"
+                >
+                  <Copy className="h-3 w-3" />
+                  Copy Snippet
+                </button>
+              </div>
+              <pre className="overflow-x-auto p-4 font-mono text-[12px] leading-relaxed">
+                <code>{snippet.code}</code>
+              </pre>
+            </div>
+          )
         )}
       </section>
     </AppShell>

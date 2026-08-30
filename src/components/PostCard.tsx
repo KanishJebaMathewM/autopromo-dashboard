@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Copy, Check, ExternalLink, Info } from "lucide-react";
+import { Copy, Check, ExternalLink, Info, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { PlatformIcon } from "@/components/PlatformIcon";
 import { ScoreBreakdown } from "@/components/ScoreBreakdown";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { buildShareUrl, platformLabel } from "@/lib/share";
+import { AutoPromo } from "@/lib/sdk";
 import type { PlatformStat, Post } from "@/lib/mockData";
 
 export function PostCard({
@@ -25,6 +26,14 @@ export function PostCard({
   // `chosen` comes from the backend for live posts; seed posts start unposted.
   const [posted, setPosted] = useState(post.chosen ?? false);
   const [copied, setCopied] = useState(false);
+  const [copiedAttribution, setCopiedAttribution] = useState(false);
+
+  const attributionUrl = AutoPromo.generateAttributionUrl(
+    appUrl || "https://autopromo.link",
+    post.id || `cmp_${post.platform.toLowerCase()}`,
+    post.platform.toLowerCase() as any,
+    post.event
+  );
 
   const text = `${post.content}${post.hashtags.length ? `\n\n${post.hashtags.join(" ")}` : ""}`;
 
@@ -36,6 +45,25 @@ export function PostCard({
       setTimeout(() => setCopied(false), 1600);
     } catch {
       toast.error("Couldn't copy — select the text instead");
+    }
+  }
+
+  async function copyAttribution() {
+    try {
+      await navigator.clipboard.writeText(attributionUrl);
+      setCopiedAttribution(true);
+      toast.success("Attribution shortlink copied!", {
+        description: "Includes UTM tracking tags to measure real installs & clicks.",
+      });
+      // Also simulate tracking a click for analytics demonstration
+      void AutoPromo.trackConversion({
+        campaignId: post.id || "demo-campaign",
+        type: "click",
+        platform: post.platform.toLowerCase() as any,
+      });
+      setTimeout(() => setCopiedAttribution(false), 1600);
+    } catch {
+      toast.error("Couldn't copy link");
     }
   }
 
@@ -106,6 +134,24 @@ export function PostCard({
           {post.hashtags.join(" ")}
         </p>
       )}
+
+      {/* Attribution Tracking Link Badge */}
+      <div className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1.5 text-xs text-muted-fg">
+        <div className="flex items-center gap-1.5 truncate">
+          <Link2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+          <span className="truncate font-mono text-[10px] text-emerald-700 dark:text-emerald-300" title={attributionUrl}>
+            {attributionUrl}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={copyAttribution}
+          className="ap-press shrink-0 ml-2 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:underline dark:text-emerald-300"
+        >
+          {copiedAttribution ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+          {copiedAttribution ? "Copied" : "Copy UTM Link"}
+        </button>
+      </div>
 
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
         {posted ? (

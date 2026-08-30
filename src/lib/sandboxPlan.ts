@@ -1,4 +1,4 @@
-export type PlanTier = "free" | "builder" | "agency";
+export type PlanTier = "free" | "impact" | "builder" | "agency";
 
 export interface PlanDetails {
   id: PlanTier;
@@ -15,7 +15,7 @@ export interface PlanDetails {
 export const PLANS: Record<PlanTier, PlanDetails> = {
   free: {
     id: "free",
-    name: "Free Sandbox",
+    name: "Free Tier",
     price: "$0",
     period: "forever",
     postsLimit: 20,
@@ -24,9 +24,27 @@ export const PLANS: Record<PlanTier, PlanDetails> = {
     badge: "FREE",
     color: "bg-muted text-muted-fg",
   },
+  impact: {
+    id: "impact",
+    name: "Open Source & Emerging Markets Impact Tier",
+    price: "$0",
+    period: "sponsored",
+    postsLimit: 200,
+    appsLimit: 3,
+    features: [
+      "200 AI promo posts / month",
+      "3 connected apps",
+      "Free for Open-Source maintainers & non-profits",
+      "Free for developers in emerging markets",
+      "Full Strategy Engine & Attribution tracking",
+      "Poster & Ad Studio generation",
+    ],
+    badge: "WORLD IMPACT (FREE)",
+    color: "bg-teal-600 text-white",
+  },
   builder: {
     id: "builder",
-    name: "Builder (Sandbox)",
+    name: "Builder",
     price: "$12",
     period: "/ month",
     postsLimit: 200,
@@ -35,15 +53,15 @@ export const PLANS: Record<PlanTier, PlanDetails> = {
       "200 AI promo posts / month",
       "3 connected apps",
       "Strategy Engine insights dashboard",
-      "Priority generation queue (Sandbox)",
+      "Priority generation queue",
       "Ad & Poster Studio artwork generation",
     ],
-    badge: "PRO SANDBOX",
+    badge: "PRO BUILDER",
     color: "bg-emerald-500 text-white",
   },
   agency: {
     id: "agency",
-    name: "Agency (Sandbox)",
+    name: "Agency",
     price: "$39",
     period: "/ month",
     postsLimit: 999999,
@@ -56,7 +74,7 @@ export const PLANS: Record<PlanTier, PlanDetails> = {
       "Dedicated priority queue",
       "Custom branding & poster themes",
     ],
-    badge: "AGENCY SANDBOX",
+    badge: "AGENCY PRO",
     color: "bg-purple-600 text-white",
   },
 };
@@ -85,7 +103,7 @@ export function canAddApp(plan: PlanTier, currentAppCount: number): boolean {
 
 /** Check if current plan permits using Ad & Poster Studio. */
 export function canUseAdStudio(plan: PlanTier): boolean {
-  return plan === "builder" || plan === "agency";
+  return plan === "builder" || plan === "agency" || plan === "impact";
 }
 
 /** Check if current plan permits White-Label Analytics export. */

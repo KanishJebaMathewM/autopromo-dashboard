@@ -25,6 +25,7 @@ import { StatsChart } from "@/components/StatsChart";
 import { FallbackNotice } from "@/components/ConnectionBadge";
 import { CreateAdModal } from "@/components/CreateAdModal";
 import { CreatePostModal } from "@/components/CreatePostModal";
+import { GrowthCopilot } from "@/components/GrowthCopilot";
 import { PaymentSandboxModal } from "@/components/PaymentSandboxModal";
 import { getStoredSandboxPlan, PLANS, isPostLimitReached, type PlanTier } from "@/lib/sandboxPlan";
 import { useDarkMode } from "@/hooks/useDarkMode";
@@ -470,6 +471,13 @@ function Dashboard() {
           receives the product events your SDK sends.
         </p>
       )}
+
+      {/* ── Proactive Growth Copilot & Anti-Spam Guard ── */}
+      <GrowthCopilot
+        app={app}
+        onTriggerEvent={(evt) => void handleTrigger(evt)}
+        onOpenCreateModal={() => setIsCreatePostModalOpen(true)}
+      />
 
       {/* ── Trigger event bar ── */}
       <section

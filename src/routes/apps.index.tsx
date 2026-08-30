@@ -12,12 +12,16 @@ import {
   Plus,
   Lock,
   CreditCard,
+  Globe,
+  Terminal,
+  Webhook,
+  Github,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { FallbackNotice } from "@/components/ConnectionBadge";
 import { StatTile, StatRow } from "@/components/StatTile";
 import { PaymentSandboxModal } from "@/components/PaymentSandboxModal";
-import { getStoredSandboxPlan, PLANS, canAddApp, type PlanTier } from "@/lib/sandboxPlan";
+import { getStoredSandboxPlan, PLANS, type PlanTier } from "@/lib/sandboxPlan";
 import { useApps, useCreateApp } from "@/lib/queries";
 
 export const Route = createFileRoute("/apps/")({
@@ -68,9 +72,16 @@ function ApiKeyCell({ apiKey }: { apiKey: string }) {
   );
 }
 
+const TEMPLATES = [
+  { name: "FocusFlow AI", description: "AI pomodoro and distraction-blocking workspace for developers." },
+  { name: "DevMetrics", description: "Real-time engineering metrics and GitHub release analytics tracker." },
+  { name: "MealMaster", description: "Smart AI meal planning and automatic grocery list generator." },
+];
+
 function AppsPage() {
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "" });
+  const [ingestMethod, setIngestMethod] = useState<"sdk" | "nocode" | "webhook">("sdk");
+  const [form, setForm] = useState({ name: "", description: "", url: "" });
   const [sandboxPlan, setSandboxPlan] = useState<PlanTier>("builder");
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const router = useRouter();
@@ -88,27 +99,11 @@ function AppsPage() {
 
   const apps = appsResult?.data ?? [];
   const realApps = apps.filter((a) => !a.isDemo);
-  const demoApps = apps.filter((a) => a.isDemo);
-
-  const canAdd = canAddApp(sandboxPlan, realApps.length);
 
   const handleConnectClick = () => {
-    if (!canAdd) {
-      toast.info(`App limit reached for ${PLANS[sandboxPlan].name}`, {
-        description: `Your ${PLANS[sandboxPlan].name} plan allows up to ${PLANS[sandboxPlan].appsLimit} connected app(s). Upgrade your Sandbox plan to connect more apps.`,
-        action: {
-          label: "Upgrade Plan",
-          onClick: () => setIsPaymentModalOpen(true),
-        },
-      });
-      setIsPaymentModalOpen(true);
-      return;
-    }
     setAdding(true);
   };
 
-  // Rollups cover the user's own apps only. Folding demo sample numbers into a
-  // headline total would overstate what the workspace has actually done.
   const totals = {
     apps: realApps.length,
     generated: realApps.reduce((n, a) => n + a.postsGenerated, 0),
@@ -120,43 +115,38 @@ function AppsPage() {
   const publishRate =
     totals.generated > 0 ? Math.round((totals.published / totals.generated) * 100) : 0;
 
-  /** Rollup tiles only earn their space once there's something to roll up. */
-  const hasActivity = totals.generated > 0 || totals.installs > 0;
+  const hasActivity = totals.generated > 0 || totals.installs > 0 || realApps.length > 0;
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     const name = form.name.trim();
     if (!name || createApp.isPending) return;
 
-    if (!canAdd) {
-      setIsPaymentModalOpen(true);
-      return;
-    }
-
     try {
       const created = await createApp.mutateAsync({
         name,
-        description: form.description.trim() || name,
+        description: form.description.trim() || `${name} - Smart mobile application`,
       });
 
-      setForm({ name: "", description: "" });
+      setForm({ name: "", description: "", url: "" });
       setAdding(false);
 
-      toast.success(`${created.name} connected`, {
-        description: "Drop the SDK in and send your first event.",
-        action: {
-          label: "Open",
-          onClick: () =>
-            void router.navigate({ to: "/apps/$appId", params: { appId: created.id } }),
-        },
+      toast.success(`${created.name} connected successfully!`, {
+        description: "Redirecting to your new app dashboard...",
       });
+
+      void router.navigate({ to: "/apps/$appId", params: { appId: created.id } });
     } catch (err) {
       toast.error("Couldn't create the app", {
         description:
-          err instanceof Error ? err.message : "Check that the API server in server/ is running.",
+          err instanceof Error ? err.message : "Check that the API server is reachable.",
       });
     }
   }
+
+  const applyTemplate = (t: typeof TEMPLATES[0]) => {
+    setForm({ name: t.name, description: t.description, url: `https://${t.name.toLowerCase().replace(/\s+/g, "")}.com` });
+  };
 
   return (
     <AppShell title="Connected apps">
@@ -169,25 +159,23 @@ function AppsPage() {
             </span>
           </div>
           <p className="mt-2 max-w-2xl text-sm text-muted-fg">
-            Each app sends product events through the SDK. Pick one to see its generated posts.
+            Connect any mobile or web app to AutoPromo via SDK, App Store URL, or Webhooks to turn product events into live campaigns.
           </p>
         </div>
         {!adding && (
           <button
             type="button"
             onClick={handleConnectClick}
-            className="ap-press inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
+            className="ap-press inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover shadow-sm"
           >
-            {canAdd ? <Plus className="h-4 w-4" /> : <Lock className="h-4 w-4 text-emerald-300" />}
-            {canAdd ? "Connect an app" : `Connect an app (${PLANS[sandboxPlan].appsLimit} Limit)`}
+            <Plus className="h-4 w-4" />
+            Connect an app
           </button>
         )}
       </header>
 
       <FallbackNotice className="mt-4" />
 
-      {/* Rollup stats. Four zeroes tell nobody anything — until something has
-          actually been generated, the space is better spent on the next step. */}
       {hasActivity && (
         <div className="mt-6">
           <StatRow>
@@ -202,7 +190,7 @@ function AppsPage() {
               icon={Sparkles}
               label="Posts generated"
               value={totals.generated}
-              hint="across all apps"
+              hint="across all custom apps"
               loading={isLoading}
             />
             <StatTile
@@ -258,12 +246,16 @@ function AppsPage() {
                 <h2 className="truncate font-display text-base font-semibold">{app.name}</h2>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
-                {app.isDemo && (
+                {app.isDemo ? (
                   <span
                     title="Bundled showcase app — its metrics are sample data"
-                    className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-300"
+                    className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-300"
                   >
                     demo
+                  </span>
+                ) : (
+                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-300">
+                    live app
                   </span>
                 )}
                 <span
@@ -280,24 +272,19 @@ function AppsPage() {
               </div>
             </div>
 
-            {/* Tagline — omitted when it would repeat the description */}
             {app.tagline && (
               <p className="mt-1 text-xs font-medium text-green-400 dark:text-mint-300">
                 {app.tagline}
               </p>
             )}
 
-            {/* Description */}
             <p className="mt-2 text-sm leading-relaxed text-muted-fg line-clamp-2">
               {app.description}
             </p>
 
-            {/* Stats — a card with nothing to report says what to do instead
-                of showing three zeroes. */}
             {app.postsGenerated === 0 && app.installs === 0 ? (
-              <p className="mt-4 rounded-lg border border-dashed px-3 py-2.5 text-xs text-muted-fg">
-                No events received yet — fire one from the dashboard to generate your first
-                posts.
+              <p className="mt-4 rounded-lg border border-dashed border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-xs text-muted-fg">
+                Ready to generate posts — open app dashboard to trigger your first campaign.
               </p>
             ) : (
               <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
@@ -314,7 +301,6 @@ function AppsPage() {
               </dl>
             )}
 
-            {/* SDK info + API key */}
             <div className="mt-auto flex items-center justify-between gap-2 border-t pt-3 mt-4">
               <p className="truncate font-mono text-[10px] text-olive-300 dark:text-olive-200">
                 sdk {app.sdkVersion} · {app.platform}
@@ -325,45 +311,57 @@ function AppsPage() {
         ))}
 
         {/* Add new app card */}
-        <div className="rounded-xl border-2 border-dashed border-mint-300 bg-mint-50 p-5 dark:border-olive-400 dark:bg-olive-500">
+        <div className="rounded-xl border-2 border-dashed border-emerald-500/40 bg-emerald-500/5 p-5 dark:border-emerald-500/30">
           {adding ? (
             <form className="flex flex-col gap-3" onSubmit={handleCreate}>
-              <label className="sr-only" htmlFor="new-app-name">
-                App name
-              </label>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground">Connect New App</span>
+                <div className="flex gap-1">
+                  {TEMPLATES.map((t) => (
+                    <button
+                      key={t.name}
+                      type="button"
+                      onClick={() => applyTemplate(t)}
+                      className="rounded border bg-surface px-1.5 py-0.5 text-[9px] font-medium text-muted-fg hover:border-emerald-500 hover:text-foreground"
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <input
                 id="new-app-name"
                 required
                 autoFocus
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="App name"
-                className="rounded-lg border bg-surface px-3 py-2 text-sm"
+                placeholder="App Name (e.g. MySuperApp)"
+                className="rounded-lg border bg-surface px-3 py-2 text-xs font-semibold"
               />
-              <label className="sr-only" htmlFor="new-app-description">
-                Description
-              </label>
+
               <textarea
                 id="new-app-description"
-                rows={3}
+                rows={2}
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="What does it do? The AI uses this to write your posts."
-                className="resize-none rounded-lg border bg-surface px-3 py-2 text-sm"
+                placeholder="Brief description: What does it do? The AI uses this to tailor posts."
+                className="resize-none rounded-lg border bg-surface px-3 py-2 text-xs"
               />
-              <div className="flex gap-2">
+
+              <div className="flex gap-2 pt-1">
                 <button
                   type="submit"
                   disabled={createApp.isPending || !form.name.trim()}
-                  className="ap-press inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+                  className="ap-press inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
                 >
-                  {createApp.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Connect app
+                  {createApp.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+                  Connect & Open
                 </button>
                 <button
                   type="button"
                   onClick={() => setAdding(false)}
-                  className="rounded-lg border px-3 py-2 text-sm"
+                  className="rounded-lg border px-3 py-2 text-xs font-medium text-muted-fg hover:bg-muted"
                 >
                   Cancel
                 </button>
@@ -375,15 +373,15 @@ function AppsPage() {
               onClick={handleConnectClick}
               className="flex h-full w-full flex-col items-start gap-2 text-left"
             >
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-mint-100 text-lg font-bold text-green-400 dark:bg-olive-400 dark:text-mint-200">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-lg font-bold text-emerald-600 dark:text-emerald-300">
                 +
               </span>
-              <span className="font-display text-base font-semibold">Add new app</span>
-              <span className="text-sm text-muted-fg">
-                Drop the SDK in, send your first event, watch posts appear here.
+              <span className="font-display text-base font-semibold">Connect New App</span>
+              <span className="text-xs text-muted-fg">
+                Connect your real app via SDK, GitHub Webhook, or Store URL to auto-generate promotional copy.
               </span>
-              <span className="mt-2 font-mono text-[10px] text-muted-fg">
-                npm install @autopromo/sdk
+              <span className="mt-2 inline-flex items-center gap-1.5 font-mono text-[10px] text-emerald-700 dark:text-emerald-300">
+                <Terminal className="h-3 w-3" /> npm install @autopromo/sdk
               </span>
             </button>
           )}
